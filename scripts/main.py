@@ -1,4 +1,4 @@
-from controller import Controller
+import controller
 
 if __name__== '__main__':
-    controller = Controller()
+    controller.init_controller()
