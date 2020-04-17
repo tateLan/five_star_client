@@ -82,3 +82,30 @@ class DBhandler():
 
         self.curs.execute(q)
         self.connect.commit()
+
+    @check_session_time_alive
+    def get_client_pending_requests(self, *args):
+        client_id = args[0][0]
+
+        q = f'select * ' \
+            f'from event_request ' \
+            f'where client_id={client_id} and processed=0;'
+
+        self.curs.execute(q)
+        return self.curs.fetchall()
+
+    @check_session_time_alive
+    def get_client_ended_events(self, *args):
+        client_id = args[0][0]
+        date = datetime.now()
+        mysql_date = f'{date.year}-{date.month}-{date.day} {date.hour}:{date.minute}:00'
+
+        q = f"select ev.event_id, ev.event_request_id, ev.title, ev.location, ev.date_starts, ev.date_ends, " \
+            f"ev.event_type_id, ev.event_class_id, ev.number_of_guests, ev.staff_needed, ev.price, ev.feedback " \
+            f"from event ev left join event_request er on ev.event_request_id = er.event_request_id " \
+            f"where er.client_id={client_id} and ev.date_ends<'{mysql_date}';"
+
+        self.curs.execute(q)
+        return self.curs.fetchall()
+
+
