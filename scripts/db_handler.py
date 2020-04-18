@@ -48,10 +48,13 @@ class DBhandler():
                 )
                 self.curs = self.connect.cursor(buffered=True)
                 self.session_time_alive = datetime.now()
+                self.connect.commit()
             try:
                 if args.__len__() == 0:
+                    self.connect.commit()
                     return func(self)
                 else:
+                    self.connect.commit()
                     return func(self, args)
             except Exception as err:
                 meth_name = sys._getframe().f_code.co_name
@@ -88,8 +91,8 @@ class DBhandler():
         client_id = args[0][0]
 
         q = f'select * ' \
-            f'from event_request ' \
-            f'where client_id={client_id} and processed=0;'
+            f'from five_star.event_request ev ' \
+            f'where ev.client_id={client_id} and processed=0;'
 
         self.curs.execute(q)
         return self.curs.fetchall()
