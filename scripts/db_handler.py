@@ -92,7 +92,7 @@ class DBhandler():
 
         q = f'select * ' \
             f'from five_star.event_request ev ' \
-            f'where ev.client_id={client_id} and processed=0;'
+            f'where ev.client_id={client_id} and (processed=-1 or processed=0);'
 
         self.curs.execute(q)
         return self.curs.fetchall()
@@ -110,5 +110,60 @@ class DBhandler():
 
         self.curs.execute(q)
         return self.curs.fetchall()
+
+    @check_session_time_alive
+    def get_client_request_extended(self, *args):
+        """
+        Returns extended information about event request
+        :param args: (event request id)
+        :return: firstly all columns from event request, than all columns from event(
+        event_req_id, client_id, date_placed, processed_by, processed,
+        event_id, event_req_id, title, location, starts, ends, event_type, event_class, guests, staff, price, feedback)
+        """
+        request_id = args[0][0]
+
+        q = f'select * ' \
+            f'from event_request er left join event e on er.event_request_id = e.event_request_id ' \
+            f'where er.event_request_id={request_id};'
+
+        self.curs.execute(q)
+        return self.curs.fetchone()
+
+    @check_session_time_alive
+    def create_event_request(self, *args):
+        """
+        Creates new event request
+        :param args: (client telegram id)
+        :return: id of created event request
+        """
+        client_id = args[0][0]
+        date = datetime.now()
+        mysql_date = f'{date.year}-{date.month}-{date.day} {date.hour}:{date.minute}:00'
+
+        q = f"insert into event_request (client_id, date_registered, processed) " \
+            f"values ({client_id}, '{mysql_date}', -1);"
+
+        self.curs.execute(q)
+        self.connect.commit()
+
+        q = f'select last_insert_id();'
+
+        self.curs.execute(q)
+        return self.curs.fetchone()[0]
+
+    @check_session_time_alive
+    def create_event(self, *args):
+        """
+        Creates event instance
+        :param args:(event request id, event title)
+        :return:None
+        """
+        event_request_id, event_title = args[0]
+
+        q = f"insert into event (event_request_id, title) " \
+            f"values ({event_request_id}, '{event_title}');"
+
+        self.curs.execute(q)
+        self.connect.commit()
 
 
