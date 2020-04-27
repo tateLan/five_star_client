@@ -1,3 +1,5 @@
+import datetime
+import calendar
 import config
 from emoji import emojize
 from model import Model
@@ -10,6 +12,28 @@ import time
 bot = telebot.TeleBot(config.TOKEN)
 logger = LogHandler()
 model = Model(logger)
+
+# Reply markup buttons for calendar
+kb_mon = types.InlineKeyboardButton(text='Пн', callback_data='day_name')
+kb_tue = types.InlineKeyboardButton(text='Вт', callback_data='day_name')
+kb_wed = types.InlineKeyboardButton(text='Ср', callback_data='day_name')
+kb_thu = types.InlineKeyboardButton(text='Чт', callback_data='day_name')
+kb_fri = types.InlineKeyboardButton(text='Пт', callback_data='day_name')
+kb_sat = types.InlineKeyboardButton(text='Сб', callback_data='day_name')
+kb_sun = types.InlineKeyboardButton(text='Нд', callback_data='day_name')
+
+month_names = {1: 'Січень',
+               2: 'Лютий',
+               3: 'Березень',
+               4: 'Квітень',
+               5: 'Травень',
+               6: 'Червень',
+               7: 'Липень',
+               8: 'Серпень',
+               9: 'Вересень',
+               10: 'Жовтень',
+               11: 'Листопад',
+               12: 'Грудень'}
 
 
 def init_controller():
@@ -45,16 +69,22 @@ def show_main_menu(message, edit=False):
               f'{events_done_str if events_done > 0 else ""}' \
               f'{pending_requests_str if pending_requests > 0 else ""}' \
               f'{needs_feedback_str if needs_feedback > 0 else ""}' \
-              f'{empty_menu_str if events_done==0 and needs_feedback==0 and pending_requests==0 else ""}'
+              f'{empty_menu_str if events_done == 0 and needs_feedback == 0 and pending_requests == 0 else ""}'
 
         inline_kb = types.InlineKeyboardMarkup()
 
         # Buttons declaration
-        events_archive = types.InlineKeyboardButton(text=f'{emojize(" :open_file_folder:", use_aliases=True)}Переглянути події', callback_data='events_archive')
-        check_pending_requests = types.InlineKeyboardButton(text=f'{emojize(" :clipboard:", use_aliases=True)}Переглянути заявки', callback_data='check_pending_requests')
-        left_feedback = types.InlineKeyboardButton(text=f'{emojize(" :bar_chart:", use_aliases=True)}Виставити рейтинг', callback_data='left_feedback')
-        create_request = types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}Створити заявку', callback_data='create_event_request')
-        update = types.InlineKeyboardButton(text=f'{emojize(" :arrows_counterclockwise:", use_aliases=True)}Оновити', callback_data='main_menu')
+        events_archive = types.InlineKeyboardButton(
+            text=f'{emojize(" :open_file_folder:", use_aliases=True)}Переглянути події', callback_data='events_archive')
+        check_pending_requests = types.InlineKeyboardButton(
+            text=f'{emojize(" :clipboard:", use_aliases=True)}Переглянути заявки',
+            callback_data='check_pending_requests')
+        left_feedback = types.InlineKeyboardButton(text=f'{emojize(" :bar_chart:", use_aliases=True)}Виставити рейтинг',
+                                                   callback_data='left_feedback')
+        create_request = types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}Створити заявку',
+                                                    callback_data='create_event_request')
+        update = types.InlineKeyboardButton(text=f'{emojize(" :arrows_counterclockwise:", use_aliases=True)}Оновити',
+                                            callback_data='main_menu')
 
         # Keyboard formatting
         if events_done > 0:
@@ -109,7 +139,8 @@ def check_pending_requests_handler(call):
                 inline_kb.row(types.InlineKeyboardButton(text=f'{request[7]}, подана {request[2]}',
                                                          callback_data=f'show_event_request_id:{request[0]}'))
 
-        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню',
+                                          callback_data='main_menu')
 
         inline_kb.row(back)
 
@@ -170,6 +201,7 @@ def check_if_request_have_required_data(func):
     :param func: function needed to be wrapped
     :return: wrapped function
     """
+
     def inner_func(message, event_request_id, edit_message=False):
         """
         Checks if client already filled all required data about event (date starts, date ends and number of guests)
@@ -179,13 +211,16 @@ def check_if_request_have_required_data(func):
                         (text and reply markup of parent message). False by default
         :return:None
         """
-        event_request_info = [x for x in model.get_client_pending_requests_extended(message.chat.id) if x[0] == int(event_request_id)][0]
+        event_request_info = \
+        [x for x in model.get_client_pending_requests_extended(message.chat.id) if x[0] == int(event_request_id)][0]
         # generator expression to get client pending request which request id = event_request_id
 
-        if event_request_info[9] is not None and event_request_info[10] is not None and event_request_info[13] is not None:
+        if event_request_info[9] is not None and event_request_info[10] is not None and event_request_info[
+            13] is not None:
             func(message, event_request_info, edit_message, requires_satisfied=True)
         else:
             func(message, event_request_info, edit_message, requires_satisfied=False)
+
     return inner_func
 
 
@@ -210,10 +245,10 @@ def show_event_request_details(message, event_request_info, edit_message=False, 
                                f'і кінця {emojize(":clock430:", use_aliases=True)} події, ' \
                                f'а також кількість гостей {emojize(":tophat:", use_aliases=True)}!\n'
 
-        created_request_date_str = f'{emojize(" :boom:",use_aliases=True)}Заявку подано:{event_request_info[2]}'
-        request_processed_str = f'{emojize(" :heavy_multiplication_x:"if event_request_info[4] != 1 else ":heavy_check_mark:",use_aliases=True)}' \
+        created_request_date_str = f'{emojize(" :boom:", use_aliases=True)}Заявку подано:{event_request_info[2]}'
+        request_processed_str = f'{emojize(" :heavy_multiplication_x:" if event_request_info[4] != 1 else ":heavy_check_mark:", use_aliases=True)}' \
                                 f'Заявку {"опрацьовано" if event_request_info[4] == 1 else "не опрацьовано"}'
-        event_title_str = f'{emojize(" :boom:",use_aliases=True)}Назва події: {event_request_info[7]}'
+        event_title_str = f'{emojize(" :boom:", use_aliases=True)}Назва події: {event_request_info[7]}'
         event_location_str = f'{emojize(" :round_pushpin:", use_aliases=True)}Місце проведення: {event_request_info[8] if event_request_info[8] is not None else "не зазначено"}'
         date_starts_str = f'{emojize(":clock4:", use_aliases=True)}Дата початку: {event_request_info[9] if event_request_info[9] is not None else "не зазначено"}'
         date_ends_str = f'{emojize(" :clock430:", use_aliases=True)}Дата закінчення: {event_request_info[10] if event_request_info[10] is not None else "не зазначено"}'
@@ -238,26 +273,31 @@ def show_event_request_details(message, event_request_info, edit_message=False, 
         inline_kb = types.InlineKeyboardMarkup()
 
         # Buttons implementing
-        set_event_title = types.InlineKeyboardButton(text=f'{emojize(" :boom:",use_aliases=True)}Внести назву',
+        set_event_title = types.InlineKeyboardButton(text=f'{emojize(" :boom:", use_aliases=True)}Внести назву',
                                                      callback_data=f'update_event_title_ev_id:{event_request_info[5]}')
 
-        set_event_location = types.InlineKeyboardButton(text=f'{emojize(" :round_pushpin:", use_aliases=True)}Внести місце проведення',
-                                                        callback_data=f'update_event_location_ev_id:{event_request_info[5]}')
+        set_event_location = types.InlineKeyboardButton(
+            text=f'{emojize(" :round_pushpin:", use_aliases=True)}Внести місце проведення',
+            callback_data=f'update_event_location_ev_id:{event_request_info[5]}')
 
         set_date_starts = types.InlineKeyboardButton(text=f'{emojize(":clock4:", use_aliases=True)}Внести дату початку',
                                                      callback_data=f'update_event_date_starts_ev_id:{event_request_info[5]}')
 
-        set_date_ends = types.InlineKeyboardButton(text=f'{emojize(":clock430:", use_aliases=True)}Внести дату закінчення',
-                                                   callback_data=f'update_event_date_ends_ev_id:{event_request_info[5]}')
+        set_date_ends = types.InlineKeyboardButton(
+            text=f'{emojize(":clock430:", use_aliases=True)}Внести дату закінчення',
+            callback_data=f'update_event_date_ends_ev_id:{event_request_info[5]}')
 
-        set_event_type = types.InlineKeyboardButton(text=f'{emojize(" :grey_question:", use_aliases=True)}Внести тип події',
-                                                    callback_data=f'update_event_type_ev_id:{event_request_info[5]}')
+        set_event_type = types.InlineKeyboardButton(
+            text=f'{emojize(" :grey_question:", use_aliases=True)}Внести тип події',
+            callback_data=f'update_event_type_ev_id:{event_request_info[5]}')
 
-        set_event_class = types.InlineKeyboardButton(text=f'{emojize(" :sparkles:", use_aliases=True)}Внести клас події',
-                                                     callback_data=f'update_event_class_ev_id:{event_request_info[5]}')
+        set_event_class = types.InlineKeyboardButton(
+            text=f'{emojize(" :sparkles:", use_aliases=True)}Внести клас події',
+            callback_data=f'update_event_class_ev_id:{event_request_info[5]}')
 
-        set_number_of_guests = types.InlineKeyboardButton(text=f'{emojize(" :tophat:", use_aliases=True)}Внести кількість гостей',
-                                                          callback_data=f'update_event_number_of_guests_ev_id:{event_request_info[5]}')
+        set_number_of_guests = types.InlineKeyboardButton(
+            text=f'{emojize(" :tophat:", use_aliases=True)}Внести кількість гостей',
+            callback_data=f'update_event_number_of_guests_ev_id:{event_request_info[5]}')
 
         next = types.InlineKeyboardButton(text=f'{emojize(" :arrow_right:", use_aliases=True)}Далі',
                                           callback_data=f'complete_request_registration_ev_req_id:{event_request_info[0]}')
@@ -271,7 +311,7 @@ def show_event_request_details(message, event_request_info, edit_message=False, 
         inline_kb.row(set_event_type, set_event_class)
         inline_kb.row(set_number_of_guests)
 
-        if requires_satisfied and event_request_info[4] == -1:    # needs to make client enter all needed data
+        if requires_satisfied and event_request_info[4] == -1:  # needs to make client enter all needed data
             inline_kb.row(next)
         if event_request_info[4] != -1:
             inline_kb.row(back)
@@ -291,6 +331,92 @@ def show_event_request_details(message, event_request_info, edit_message=False, 
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_date_starts_ev_id:')) > 1)
+def update_event_date_starts_ev_id_handler(call):
+    try:
+        event_id = int(call.data.split('update_event_date_starts_ev_id:')[1])
+        now = datetime.datetime.now()
+        msg = f'Виберіть дату початку події:'
+        inline_kb = generate_calendar_keyboard(now.year, now.month, False, True, 0, event_id)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+def generate_calendar_keyboard(year, r_month, prev_m, next_m, what_date, ev_id):
+    """
+    Generates inline calendar keyboard, for user friendly date input
+    :param year: year of period
+    :param month: month of period
+    :param prev_m: boolean indicator, if button previous month needs
+    :param next_m: boolean indicator, if button next month needs
+    :param what_date: 0 - 'date starts event', 1 - 'date ends event
+    :param ev_id: event id
+    :return: inline keyboard instance
+    """
+    try:
+        month = calendar.monthcalendar(year, r_month)
+        inline_kb = types.InlineKeyboardMarkup()
+
+        month_name = types.InlineKeyboardButton(text=f'{month_names[r_month]} {year}', callback_data=f'day')
+
+        inline_kb.row(month_name)
+        inline_kb.row(kb_mon, kb_tue, kb_wed, kb_thu, kb_fri, kb_sat, kb_sun)
+        for week in month:
+            week_days = []
+            for day in week:
+                callback = 'day'
+                if day != 0:
+                    callback = f'update_event_date:{"starts" if what_date == 0 else "ends"}_ev_req_id:{ev_id}_date:{year}-{r_month}-{day}'
+                kb_day = types.InlineKeyboardButton(text=f'{day if day != 0 else "⠀"}', callback_data=callback)
+                week_days.append(kb_day)
+            inline_kb.row(*week_days)  # unpacks list
+
+        prev = types.InlineKeyboardButton(text=f'{emojize(" :arrow_backward:", use_aliases=True)}',
+                                          callback_data=f'show_calendar_for_date:{year}-{r_month - 1 if r_month != 1 else 12}_type_of_date:{what_date}_event_id:{ev_id}')
+
+        next = types.InlineKeyboardButton(text=f'{emojize(" :arrow_forward:", use_aliases=True)}',
+                                          callback_data=f'show_calendar_for_date:{year}-{r_month + 1 if r_month != 12 else 1}_type_of_date:{what_date}_event_id:{ev_id}')
+
+        if prev_m and next_m:
+            inline_kb.row(prev, next)
+        elif not prev_m and next_m:
+            inline_kb.row((next))
+
+        return inline_kb
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('show_calendar_for_date:')) > 1)
+def show_calendar_for_date_handler(call):
+    try:
+        period = call.data.split('show_calendar_for_date:')[1].split('_')[0]
+        year = int(period.split('-')[0])
+        month = int(period.split('-')[1])
+        type_of_date = int(call.data.split('type_of_date:')[1].split('_')[0])
+        event_id = int(call.data.split('event_id:')[1])
+        date = datetime.datetime.now()
+
+        inline_kb = generate_calendar_keyboard(year, month, False if month==date.month else True, True, type_of_date, event_id)
+
+        bot.edit_message_reply_markup(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
 @bot.message_handler(commands=['start'])
 def start_command_handler(message):
     try:
@@ -303,7 +429,7 @@ def start_command_handler(message):
             show_main_menu(message)
         else:
             msg = 'Вітаю! Схоже це ваш перший візит до компанії \'Five star\'! Введіть своє ім\'я, і ми продовжимо:'
-            bot.send_message(chat_id=message.chat.id,text=msg)
+            bot.send_message(chat_id=message.chat.id, text=msg)
 
             bot.register_next_step_handler_by_chat_id(message.chat.id, set_client_name)
     except Exception as err:
