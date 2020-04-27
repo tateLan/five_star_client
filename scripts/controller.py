@@ -220,7 +220,6 @@ def check_if_request_have_required_data(func):
             func(message, event_request_info, edit_message, requires_satisfied=True)
         else:
             func(message, event_request_info, edit_message, requires_satisfied=False)
-
     return inner_func
 
 
@@ -373,7 +372,11 @@ def generate_calendar_keyboard(year, r_month, prev_m, next_m, what_date, ev_id):
             for day in week:
                 callback = 'day'
                 if day != 0:
-                    callback = f'update_event_date:{"starts" if what_date == 0 else "ends"}_ev_req_id:{ev_id}_date:{year}-{r_month}-{day}'
+                    date = datetime.datetime.now()
+                    minute = date.minute if date.minute % 5 == 0 else (date.minute - date.minute % 5) + 5   # makes minute value mod 5(5, 10, 15 etc)
+                    callback = f'set_inline_watch:{year}-{r_month}-{day}+{date.hour}:{minute}:00_type:{what_date}_ev_id:{ev_id}'
+                    # callback data which creates time picker, initialised with selected here data
+
                 kb_day = types.InlineKeyboardButton(text=f'{day if day != 0 else "⠀"}', callback_data=callback)
                 week_days.append(kb_day)
             inline_kb.row(*week_days)  # unpacks list
@@ -396,6 +399,51 @@ def generate_calendar_keyboard(year, r_month, prev_m, next_m, what_date, ev_id):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+@bot.callback_query_handler(func=lambda call: len(call.data.split('set_inline_watch:')) > 1)
+def set_inline_watch_handler(call):
+    try:
+        type_of_date = int(call.data.split('_type:')[1].split('_')[0])
+        event_id = int(call.data.split('_ev_id:')[1])
+        mysql_date = f'{call.data.split("set_inline_watch:")[1].split("+")[0]}' # year-month-day
+
+        hour = int(call.data.split('+')[1].split(':')[0])
+        minute = int(call.data.split('+')[1].split(':')[1])
+
+        msg = f'Виберіть час {"початку" if type_of_date == 0 else "закінчення"} події:'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        plus_hour = types.InlineKeyboardButton(text=f'{emojize("  :arrow_up_small:", use_aliases=True)}',
+                                               callback_data=f'set_inline_watch:{mysql_date}+{hour+1 if hour != 24 else 00}:{minute}:00_type:{type_of_date}_ev_id:{event_id}')
+        empty = types.InlineKeyboardButton(text=f'⠀', callback_data='empty')
+        plus_min = types.InlineKeyboardButton(text=f'{emojize("  :arrow_up_small:", use_aliases=True)}',
+                                              callback_data=f'set_inline_watch:{mysql_date}+{hour}:{minute+5 if minute != 55 else 00}:00_type:{type_of_date}_ev_id:{event_id}')
+
+        btn_hour = types.InlineKeyboardButton(text=f'{hour}', callback_data='empty')
+        dots = types.InlineKeyboardButton(text=f':', callback_data='empty')
+        btn_min = types.InlineKeyboardButton(text=f'{minute}', callback_data='empty')
+
+        minus_hour = types.InlineKeyboardButton(text=f'{emojize(" :arrow_down_small:", use_aliases=True)}',
+                                                callback_data=f'set_inline_watch:{mysql_date}+{hour-1 if hour != 00 else 24}:{minute}:00_type:{type_of_date}_ev_id:{event_id}')
+        minus_min = types.InlineKeyboardButton(text=f'{emojize("  :arrow_down_small:", use_aliases=True)}',
+                                               callback_data=f'set_inline_watch:{mysql_date}+{hour}:{minute-5 if minute != 00 else 55}:00_type:{type_of_date}_ev_id:{event_id}')
+
+        inline_kb.row(plus_hour, empty, plus_min)
+        inline_kb.row(btn_hour, dots, btn_min)
+        inline_kb.row(minus_hour, empty, minus_min)
+        inline_kb.row(empty)
+        inline_kb.row(types.InlineKeyboardButton(text=f"{emojize(' :white_check_mark:', use_aliases=True)}",
+                                                 callback_data=f"update_event_date:{mysql_date}+{hour}:{minute}:00_type:{type_of_date}_ev_id:{event_id}"))
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
 @bot.callback_query_handler(func=lambda call: len(call.data.split('show_calendar_for_date:')) > 1)
 def show_calendar_for_date_handler(call):
     try:
@@ -411,6 +459,48 @@ def show_calendar_for_date_handler(call):
         bot.edit_message_reply_markup(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
                               reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_date:')) > 1)
+def update_event_date_handler(call):
+    try:
+        mysql_date = call.data.split('update_event_date:')[1].split('_')[0].replace('+', ' ')
+        type_of_date = int(call.data.split('_type:')[1].split('_')[0])
+        ev_id = int(call.data.split('_ev_id:')[1])
+
+        if not type_of_date:
+            model.update_event_start_date(ev_id, mysql_date)
+        else:
+            model.update_event_end_date(ev_id, mysql_date)
+
+        msg = f'Дані про дату {"початку" if type_of_date == 0 else "закінчення"} події оновлено!{emojize(":tada:", use_aliases=True)}'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад', callback_data=f'back_to_detailed_request_event_id:{ev_id}')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('back_to_detailed_request_event_id:')) > 1)
+def back_to_detailed_request_event_id_handler(call):
+    try:
+        event_id = int(call.data.split('back_to_detailed_request_event_id:')[1])
+        event_request_id = [x[1] for x in model.get_client_events(call.message.chat.id)][0]
+
+        show_event_request_details(call.message, event_request_id, True)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')

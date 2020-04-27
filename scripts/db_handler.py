@@ -166,4 +166,39 @@ class DBhandler():
         self.curs.execute(q)
         self.connect.commit()
 
+    @check_session_time_alive
+    def update_event_date_starts_by_event_request_id(self, *args):
+        """
+        Updates event start date (date only, without time)
+        :param args: (event id, mysql date)
+        :return: None
+        """
+        ev_id, mysql_date = args[0]
+        q = f"update event set date_starts='{mysql_date}' where event_id={ev_id};"
+        self.curs.execute(q)
+        self.connect.commit()
 
+    @check_session_time_alive
+    def update_event_date_ends_by_event_request_id(self, *args):
+        """
+        Updates event ends date (date only, without time)
+        :param args: (event id, mysql date)
+        :return: None
+        """
+        ev_id, mysql_date = args[0]
+
+        q = f"update event set date_ends='{mysql_date}' where event_id={ev_id};"
+        self.curs.execute(q)
+        self.connect.commit()
+
+    @check_session_time_alive
+    def get_client_events(self, *args):
+        client_id = args[0][0]
+
+        q = f'select e.event_id, e.event_request_id, e.title, e.location, e.date_starts, e.date_ends, ' \
+            f'e.event_type_id, e.event_class_id, e.number_of_guests, e.staff_needed, e.price, e.feedback ' \
+            f'from event e left JOIN event_request er on e.event_request_id = er.event_request_id ' \
+            f'where er.client_id={client_id};'
+        self.curs.execute(q)
+
+        return self.curs.fetchall()

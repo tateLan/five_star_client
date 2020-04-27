@@ -143,3 +143,51 @@ class Model:
 
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+    
+    def update_event_start_date(self, event_id, mysql_date):
+        """
+        Updates event start date
+        :param event_id: event id
+        :param mysql_date: string with date formatted to fit mysql format
+        :return: None
+        """
+        try:
+            self.db_handler.update_event_date_starts_by_event_request_id(event_id, mysql_date)
+            self.logger.write_to_log('event date only updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def update_event_end_date(self, event_id, mysql_date):
+        """
+        Updates event end date by event id
+        :param event_id: event id
+        :param mysql_date: string with date formatted to fit mysql format
+        :return: None
+        """
+        try:
+            self.db_handler.update_event_date_ends_by_event_request_id(event_id, mysql_date)
+            self.logger.write_to_log('event date only updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def get_client_events(self, client_id):
+        """
+        Returns all events (including pending requests) for client
+        :param client_id: client telegram id
+        :return: list of events client created
+        """
+        try:
+            events = self.db_handler.get_client_events(client_id)
+            self.logger.write_to_log('client events got', 'model')
+            return events
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
