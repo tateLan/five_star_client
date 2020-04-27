@@ -360,7 +360,17 @@ def generate_calendar_keyboard(year, r_month, prev_m, next_m, what_date, ev_id):
     :return: inline keyboard instance
     """
     try:
+        date = datetime.datetime.now()
         month = calendar.monthcalendar(year, r_month)
+
+        if date.month == r_month:
+            for i in range(len(month)):
+                for j in range(len(month[i])):
+                    if month[i][j] < date.day:
+                        month[i][j] = 0
+                    else:
+                        break
+
         inline_kb = types.InlineKeyboardMarkup()
 
         month_name = types.InlineKeyboardButton(text=f'{month_names[r_month]} {year}', callback_data=f'day')
@@ -454,7 +464,7 @@ def show_calendar_for_date_handler(call):
         event_id = int(call.data.split('event_id:')[1])
         date = datetime.datetime.now()
 
-        inline_kb = generate_calendar_keyboard(year, month, False if month==date.month else True, True, type_of_date, event_id)
+        inline_kb = generate_calendar_keyboard(year, month, False if month == date.month else True, True, type_of_date, event_id)
 
         bot.edit_message_reply_markup(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
