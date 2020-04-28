@@ -202,3 +202,16 @@ class DBhandler():
         self.curs.execute(q)
 
         return self.curs.fetchall()
+
+    @check_session_time_alive
+    def update_event_title(self, *args):
+        event_id, title = args[0]
+
+        q = f"update event set title='{title}' where event_id={event_id};"
+
+        self.curs.execute(q)
+        self.connect.commit()
+
+
+
+

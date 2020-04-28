@@ -191,3 +191,19 @@ class Model:
 
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def update_event_title(self, event_id, title):
+        """
+        Updates event title (without creating event)
+        :param event_id: event id
+        :param title: new title
+        :return: None
+        """
+        try:
+            self.db_handler.update_event_title(event_id, title)
+            self.logger.write_to_log(f'event title updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')

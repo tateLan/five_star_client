@@ -113,6 +113,16 @@ def show_main_menu(message, edit=False):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+@bot.message_handler(commands=['menu'])
+def handle_menu_command(message):
+    try:
+        show_main_menu(message, False)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
 @bot.callback_query_handler(func=lambda call: call.data == 'main_menu')
 def main_menu(call):
     try:
@@ -542,6 +552,48 @@ def back_to_detailed_request_event_id_handler(call):
         event_request_id = [x[1] for x in model.get_client_events(call.message.chat.id)][0]
 
         show_event_request_details(call.message, event_request_id, True)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_title_ev_id:')) > 1)
+def update_event_title_ev_id_handler(call):
+    try:
+        event_id = int(call.data.split('update_event_title_ev_id:')[1])
+        msg = f'Введіть назву події:'
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg)
+
+        bot.register_next_step_handler_by_chat_id(call.message.chat.id, update_event_title, event_id)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+def update_event_title(message, *args):
+    """
+    Method updates event title (without creating new event)
+    :param message:message instance
+    :param args:(event id)
+    :return: None
+    """
+    try:
+        event_id = args[0]
+        model.update_event_title(event_id, message.text)
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад', callback_data=f'back_to_detailed_request_event_id:{event_id}')
+
+        inline_kb.row(back)
+
+        bot.send_message(chat_id=message.chat.id,
+                              text=f'Назву події було оновлено{emojize(":tada:", use_aliases=True)}',
+                              reply_markup=inline_kb)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')
