@@ -482,17 +482,48 @@ def update_event_date_handler(call):
         type_of_date = int(call.data.split('_type:')[1].split('_')[0])
         ev_id = int(call.data.split('_ev_id:')[1])
 
+        msg = f'Дані про дату {"початку" if type_of_date == 0 else "закінчення"} події оновлено!{emojize(":tada:", use_aliases=True)}'
+
         if not type_of_date:
             model.update_event_start_date(ev_id, mysql_date)
         else:
-            model.update_event_end_date(ev_id, mysql_date)
+            date_starts = [x for x in model.get_client_events(call.message.chat.id) if x[0]==ev_id][0][4]
+            date_ends = datetime.datetime.strptime(mysql_date, '%Y-%m-%d %H:%M:%S')
+            if date_starts is not None:
+                diff = date_ends - date_starts
 
-        msg = f'Дані про дату {"початку" if type_of_date == 0 else "закінчення"} події оновлено!{emojize(":tada:", use_aliases=True)}'
+                if diff.days >=0 and diff.seconds > 0:
+                    model.update_event_end_date(ev_id, mysql_date)
+                else:
+                    msg = f'Дані про дату закінчення події не оновлено, ' \
+                          f'оскільки дата закінчення аипереджає дату початку!'
+
         inline_kb = types.InlineKeyboardMarkup()
 
         back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад', callback_data=f'back_to_detailed_request_event_id:{ev_id}')
 
         inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_date_ends_ev_id:')) > 1)
+def update_event_date_ends_ev_id_handler(call):
+    try:
+        event_id = int(call.data.split('update_event_date_ends_ev_id:')[1])
+
+        now = datetime.datetime.now()
+        date_starts = [x for x in model.get_client_events(call.message.chat.id) if x[0] == event_id][0][4]
+
+        msg = f'Виберіть дату закінчення події:'
+        inline_kb = generate_calendar_keyboard(now.year, now.month, False, True, 1, event_id)
 
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
