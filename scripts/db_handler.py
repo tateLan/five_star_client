@@ -212,6 +212,13 @@ class DBhandler():
         self.curs.execute(q)
         self.connect.commit()
 
+    @check_session_time_alive
+    def update_event_location(self, *args):
+        event_id, geo = args[0]
 
+        q = f"update event set location='{geo}' where event_id={event_id};"
+
+        self.curs.execute(q)
+        self.connect.commit()
 
 

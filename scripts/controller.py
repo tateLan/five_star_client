@@ -600,6 +600,46 @@ def update_event_title(message, *args):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_location_ev_id:')) > 1)
+def update_event_location_ev_id_handler(call):
+    try:
+        event_id = int(call.data.split('update_event_location_ev_id:')[1])
+        msg = f'Відправте боту локацію на якій проходитиме святкування події ' \
+              f'(використовуйте тільки вбудовані засоби Telegram, якщо ви використовуєте мобільний додаток.' \
+              f' В інакшому випадку залиште цей пункт не заповненим, та попросіть менеджера це зробити):'
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg)
+
+        bot.register_next_step_handler_by_chat_id(call.message.chat.id, update_event_location, event_id)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+def update_event_location(message, *args):
+    try:
+        event_id = args[0]
+        model.update_event_location(event_id, message.location.latitude, message.location.longitude)
+
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад',
+                                          callback_data=f'back_to_detailed_request_event_id:{event_id}')
+        inline_kb.row(back)
+
+        bot.send_message(chat_id=message.chat.id,
+                         text=f'Локацію події було оновлено{emojize(":tada:", use_aliases=True)}',
+                         reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+
 @bot.message_handler(commands=['start'])
 def start_command_handler(message):
     try:
