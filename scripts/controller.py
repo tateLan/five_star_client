@@ -261,8 +261,8 @@ def show_event_request_details(message, event_request_info, edit_message=False, 
         event_location_str = f'{emojize(" :round_pushpin:", use_aliases=True)}Місце проведення: {event_request_info[8] if event_request_info[8] is not None else "не зазначено"}'
         date_starts_str = f'{emojize(":clock4:", use_aliases=True)}Дата початку: {event_request_info[9] if event_request_info[9] is not None else "не зазначено"}'
         date_ends_str = f'{emojize(" :clock430:", use_aliases=True)}Дата закінчення: {event_request_info[10] if event_request_info[10] is not None else "не зазначено"}'
-        event_type_str = f'{emojize(" :grey_question:", use_aliases=True)}Тип події: {event_request_info[11] if event_request_info[11] is not None else "не зазначено"}'
-        event_class_str = f'{emojize(" :sparkles:", use_aliases=True)}Клас події: {event_request_info[12] if event_request_info[12] is not None else "не зазначено"}'
+        event_type_str = f'{emojize(" :grey_question:", use_aliases=True)}Тип події: {[x[1] for x in model.get_event_types() if x[0] == event_request_info[11]][0] if event_request_info[11] is not None else "не зазначено"}'
+        event_class_str = f'{emojize(" :sparkles:", use_aliases=True)}Клас події: {[x[1] for x in model.get_event_classes() if x[0] == event_request_info[12]][0] if event_request_info[12] is not None else "не зазначено"}'
         guests_str = f'{emojize(" :tophat:", use_aliases=True)}Кількість гостей: {event_request_info[13] if event_request_info[13] is not None else "не зазначено"}'
 
         msg = f'{emojize(" :pencil2:", use_aliases=True)} Створення заявки на проведення події\n' \
