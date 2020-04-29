@@ -684,6 +684,51 @@ def update_event_type_type_id_handler(call):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_class_ev_id:')) > 1)
+def update_event_class_ev_id_handler(call):
+    try:
+        event_id = int(call.data.split('update_event_class_ev_id:')[1])
+        msg = f'Виберіть тип події:'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        for ev_class in model.get_event_classes():
+            inline_kb.row(types.InlineKeyboardButton(text=f'{ev_class[1]}', callback_data=f'update_event_class_class_id:{ev_class[0]}_ev_id:{event_id}'))
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_class_class_id:')) > 1)
+def update_event_class_class_id_handler(call):
+    try:
+        event_class_id = int(call.data.split('update_event_class_class_id:')[1].split('_')[0])
+        event_id = int(call.data.split('_ev_id:')[1])
+
+        model.update_event_class(event_id, event_class_id)
+
+        msg = f'Клас події оновлено!{emojize(":tada:", use_aliases=True)}'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад',
+                                                 callback_data=f'back_to_detailed_request_event_id:{event_id}')
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
 @bot.message_handler(commands=['start'])
 def start_command_handler(message):
     try:

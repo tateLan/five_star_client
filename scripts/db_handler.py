@@ -236,3 +236,20 @@ class DBhandler():
         self.curs.execute(q)
         self.connect.commit()
 
+    @check_session_time_alive
+    def get_event_classes(self):
+        q = f'select * from event_class;'
+
+        self.curs.execute(q)
+        return self.curs.fetchall()
+
+    @check_session_time_alive
+    def update_event_class(self, *args):
+        event_id, class_id = args[0]
+
+        q = f'update event set event_class_id={class_id} where event_id={event_id};'
+
+        self.curs.execute(q)
+        self.connect.commit()
+
+
