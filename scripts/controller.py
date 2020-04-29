@@ -715,7 +715,7 @@ def update_event_class_class_id_handler(call):
         msg = f'Клас події оновлено!{emojize(":tada:", use_aliases=True)}'
         inline_kb = types.InlineKeyboardMarkup()
 
-        back = back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад',
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад',
                                                  callback_data=f'back_to_detailed_request_event_id:{event_id}')
         inline_kb.row(back)
 
@@ -723,6 +723,53 @@ def update_event_class_class_id_handler(call):
                               message_id=call.message.message_id,
                               text=msg,
                               reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('update_event_number_of_guests_ev_id:')) > 1)
+def update_event_number_of_guests_ev_id_handler(call):
+    try:
+        event_id = int(call.data.split('update_event_number_of_guests_ev_id:')[1])
+        msg = f'Введіть кількість гостей:'
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg)
+        bot.register_next_step_handler_by_chat_id(call.message.chat.id, update_event_number_of_guests, event_id)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+def update_event_number_of_guests(message, *args):
+    try:
+        event_id = args[0]
+        number_of_guests = 0
+        msg = ''
+        inline_kb = types.InlineKeyboardMarkup()
+
+        try:
+            number_of_guests = int(message.text)
+        except ValueError as v_err:
+            number_of_guests = -1
+
+        if number_of_guests <= 0:   # if its -1 from invalid input, or user entered negative value
+            msg = f'Дані не було оновлено! Перевірте правильність введених даних, це повинне бути число більше 0!'
+            inline_kb.row(types.InlineKeyboardButton(text=f'{emojize("  :arrows_counterclockwise:", use_aliases=True)}Повторити',
+                                                     callback_data=f'update_event_number_of_guests_ev_id:{event_id}'))
+        else:
+            model.update_event_number_of_guests(event_id, number_of_guests)
+            msg = f'Кількість гостей оновлено!{emojize(":tada:", use_aliases=True)}'
+            inline_kb.row(types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}Назад',
+                                                 callback_data=f'back_to_detailed_request_event_id:{event_id}'))
+
+        bot.send_message(chat_id=message.chat.id,
+                         text=msg,
+                         reply_markup=inline_kb)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')

@@ -288,3 +288,19 @@ class Model:
     
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def update_event_number_of_guests(self, event_id, number_of_g):
+        """
+        Updates number of guests on event
+        :param event_id:event id
+        :param number_of_g:number of guests
+        :return:None
+        """
+        try:
+            self.db_handler.update_event_number_of_guests(event_id, number_of_g)
+            self.logger.write_to_log(f'event number of guests updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
