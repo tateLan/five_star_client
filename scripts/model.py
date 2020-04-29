@@ -209,6 +209,13 @@ class Model:
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
 
     def update_event_location(self, event_id, latitude, longitude):
+        """
+        Updates event location
+        :param event_id: event id
+        :param latitude: latitude
+        :param longitude: longitude
+        :return:None
+        """
         try:
             self.logger.write_to_log(f'updating event {event_id} location', 'model')
 
@@ -217,5 +224,36 @@ class Model:
         except Exception as err:
             method_name = sys._getframe().f_code.co_name
 
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+    
+    def get_event_types(self):
+        """
+        Returns list of event types
+        :return:list of event types
+        """
+        try:
+            ev_types = self.db_handler.get_event_types()
+            self.logger.write_to_log(f'event types got', 'model')
+            return ev_types
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+    
+    def update_event_type(self, event_id, type_id):
+        """
+        Updates event type id
+        :param event_id: event id
+        :param type_id: event type id
+        :return:None
+        """
+        try:
+            self.db_handler.update_event_type(event_id, type_id)
+            self.logger.write_to_log(f'event type updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+    
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
