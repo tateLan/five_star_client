@@ -270,3 +270,30 @@ class DBhandler():
         self.curs.execute(q)
         self.connect.commit()
 
+    @check_session_time_alive
+    def get_client(self, *args):
+        client_id = args[0][0]
+
+        q = f'select * from client where client_id={client_id};'
+
+        self.curs.execute(q)
+        return self.curs.fetchone()
+
+    @check_session_time_alive
+    def update_client_last_name(self, *args):
+        client_id, last_name = args[0]
+
+        q = f"update client set last_name='{last_name}' where client_id={client_id};"
+
+        self.curs.execute(q)
+        self.connect.commit()
+
+    @check_session_time_alive
+    def update_client_ph_num(self, *args):
+        client_id, ph_num = args[0]
+
+        q = f"update client set phone='{ph_num}' where client_id={client_id};"
+
+        self.curs.execute(q)
+        self.connect.commit()
+

@@ -320,3 +320,51 @@ class Model:
     
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def get_client(self, client_id):
+        """
+        Returns client data, by its id
+        :param client_id: client telegram id
+        :return: set of client data
+        """
+        try:
+            client = self.db_handler.get_client(client_id)
+            self.logger.write_to_log(f'client data got', 'model')
+            return client
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+    
+    def update_client_last_name(self, client_id, lname):
+        """
+        Updates client last name
+        :param client_id: client telegram id
+        :param lname: last name
+        :return: None
+        """
+        try:
+            self.db_handler.update_client_last_name(client_id, lname)
+            self.logger.write_to_log(f'last name updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+    
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def update_client_ph_number(self, client_id, ph_num):
+        """
+        Updates client phone number
+        :param client_id: client telegram id
+        :param ph_num: string with phone number
+        :return:None
+        """
+        try:
+            self.db_handler.update_client_ph_num(client_id, ph_num)
+            self.logger.write_to_log(f'client phone number updated', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')

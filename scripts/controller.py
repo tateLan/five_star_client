@@ -35,6 +35,7 @@ month_names = {1: 'Січень',
                11: 'Листопад',
                12: 'Грудень'}
 
+ev_req_for_contact_updating = {}
 
 def init_controller():
     """
@@ -774,7 +775,41 @@ def update_event_number_of_guests(message, *args):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+def check_if_user_entered_personal_info(func):
+    """
+    Decorator for function completing request registration
+    :param func: function to wrap
+    :return: inner wrapped function
+    """
+    def inner_func(call):
+        event_req_id = int(call.data.split('complete_request_registration_ev_req_id:')[1])
+        user = model.get_client(call.message.chat.id)
+
+        if user[4] is None or user[6] is None:
+            msg = f'Для завершення реєстрації заявки заповніть будь-ласка необхідні контактні дані, ' \
+                  f'щоб менеджер міг з Вами зв\'язатись:'
+
+            inline_kb = types.InlineKeyboardMarkup()
+
+            get_lname = types.InlineKeyboardButton(text=f'{emojize(" :clipboard:", use_aliases=True)}Прізвище', callback_data=f'set_client_last_name_ev_req_id:{event_req_id}')
+            get_number = types.InlineKeyboardButton(text=f'{emojize(" :phone:", use_aliases=True)}Номер телефону', callback_data=f'set_client_phone_number_ev_req_id:{event_req_id}')
+
+            if user[4] is None:
+                inline_kb.row(get_lname)
+            if user[6] is None:
+                inline_kb.row(get_number)
+
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id,
+                                  text=msg,
+                                  reply_markup=inline_kb)
+        else:
+            func(call)
+    return inner_func
+
+
 @bot.callback_query_handler(func=lambda call: len(call.data.split('complete_request_registration_ev_req_id:')) > 1)
+@check_if_user_entered_personal_info
 def complete_request_registration_ev_req_id_handler(call):
     try:
         event_req_id = int(call.data.split('complete_request_registration_ev_req_id:')[1])
@@ -793,6 +828,90 @@ def complete_request_registration_ev_req_id_handler(call):
                               message_id=call.message.message_id,
                               text=msg,
                               reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split('set_client_last_name_ev_req_id:').__len__() > 1 )
+def set_client_last_name_handler(call):
+    try:
+        event_req_id = call.data.split('set_client_last_name_ev_req_id:')[1]
+        msg = f'Введіть своє прізвище:'
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg)
+        bot.register_next_step_handler_by_chat_id(call.message.chat.id, set_client_last_name, event_req_id)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+def set_client_last_name(message, *args):
+    try:
+        ev_req_id = args[0]
+        model.update_client_last_name(message.chat.id, message.text)
+
+        msg = f'Ваше прізвище оновлено!{emojize(":tada:", use_aliases=True)}'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        inline_kb.row( types.InlineKeyboardButton(text=f'{emojize(" :arrow_right:", use_aliases=True)}Далі',
+                                          callback_data=f'complete_request_registration_ev_req_id:{ev_req_id}'))
+
+        bot.send_message(chat_id=message.chat.id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('set_client_phone_number_ev_req_id:')) > 1)
+def set_client_phone_number_ev_req_id_handler(call):
+    try:
+        event_req_id = call.data.split('set_client_phone_number_ev_req_id:')[1]
+
+        ev_req_for_contact_updating[call.message.chat.id] = event_req_id
+
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        button_phone = types.KeyboardButton(text="Відправити номер телефону", request_contact=True)
+        keyboard.add(button_phone)
+        bot.delete_message(chat_id=call.message.chat.id,
+                           message_id=call.message.message_id)
+        bot.send_message(chat_id=call.message.chat.id,
+                         text='Відправте будь-ласка свій номер',
+                         reply_markup=keyboard)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.message_handler(content_types=['contact'])
+def get_contact_message(message):
+    try:
+        model.update_client_ph_number(message.chat.id, message.contact.phone_number)
+
+        rem_markup = types.ReplyKeyboardRemove()
+        ev_req_id = ev_req_for_contact_updating.pop(message.chat.id)
+
+        bot.reply_to(message=message,
+                     text=f'Ваш номер телефону оновлено!{emojize(":tada:", use_aliases=True)}',
+                     reply_markup=rem_markup)
+
+        msg = 'Тепер можна продовжити'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        inline_kb.row(types.InlineKeyboardButton(text=f'{emojize(" :arrow_right:", use_aliases=True)}Далі',
+                                                 callback_data=f'complete_request_registration_ev_req_id:{ev_req_id}'))
+
+        bot.send_message(chat_id=message.chat.id,
+                         text=msg,
+                         reply_markup=inline_kb)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')
