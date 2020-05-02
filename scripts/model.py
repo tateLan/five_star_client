@@ -304,3 +304,19 @@ class Model:
 
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def confirm_request_registration(self, ev_req_id):
+        """
+        Registers event request, if all needed data is entered, and client information is full
+        :param ev_req_id: event request id
+        :return:None
+        """
+        try:
+            self.db_handler.confirm_request_registration(ev_req_id)
+            self.logger.write_to_log(f'event request registered', 'model')
+            # TODO: notify managers about new request
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+    
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')

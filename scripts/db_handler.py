@@ -261,3 +261,12 @@ class DBhandler():
         self.curs.execute(q)
         self.connect.commit()
 
+    @check_session_time_alive
+    def confirm_request_registration(self, *args):
+        ev_req_id = args[0][0]
+
+        q = f'update event_request set processed=0 where event_request_id={ev_req_id};'
+
+        self.curs.execute(q)
+        self.connect.commit()
+

@@ -221,12 +221,10 @@ def check_if_request_have_required_data(func):
                         (text and reply markup of parent message). False by default
         :return:None
         """
-        event_request_info = \
-        [x for x in model.get_client_pending_requests_extended(message.chat.id) if x[0] == int(event_request_id)][0]
+        event_request_info = [x for x in model.get_client_pending_requests_extended(message.chat.id) if x[0] == int(event_request_id)][0]
         # generator expression to get client pending request which request id = event_request_id
 
-        if event_request_info[9] is not None and event_request_info[10] is not None and event_request_info[
-            13] is not None:
+        if event_request_info[9] is not None and event_request_info[10] is not None and event_request_info[13] is not None:
             func(message, event_request_info, edit_message, requires_satisfied=True)
         else:
             func(message, event_request_info, edit_message, requires_satisfied=False)
@@ -549,7 +547,7 @@ def update_event_date_ends_ev_id_handler(call):
 def back_to_detailed_request_event_id_handler(call):
     try:
         event_id = int(call.data.split('back_to_detailed_request_event_id:')[1])
-        event_request_id = [x[1] for x in model.get_client_events(call.message.chat.id)][0]
+        event_request_id = [x[1] for x in model.get_client_events(call.message.chat.id) if x[0]== event_id][0]
 
         show_event_request_details(call.message, event_request_id, True)
     except Exception as err:
@@ -770,6 +768,31 @@ def update_event_number_of_guests(message, *args):
         bot.send_message(chat_id=message.chat.id,
                          text=msg,
                          reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('complete_request_registration_ev_req_id:')) > 1)
+def complete_request_registration_ev_req_id_handler(call):
+    try:
+        event_req_id = int(call.data.split('complete_request_registration_ev_req_id:')[1])
+
+        model.confirm_request_registration(event_req_id)
+
+        msg = f'Заявку зареєстровано!{emojize(":tada:", use_aliases=True)}\nНайближчим часом з ' \
+              f'вами зв\'яжеться менеджер для підтвердження або уточнення'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')
