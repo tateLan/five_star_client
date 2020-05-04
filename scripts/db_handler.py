@@ -297,3 +297,30 @@ class DBhandler():
         self.curs.execute(q)
         self.connect.commit()
 
+    @check_session_time_alive
+    def insert_client_last_message_id(self, *args):
+        client_id, message_id = args[0]
+
+        q = f'insert into client_last_message_to_edit (client_id, message_id) ' \
+            f'values ({client_id}, {message_id});'
+
+        self.curs.execute(q)
+        self.connect.commit()
+
+    @check_session_time_alive
+    def update_client_last_message_id(self, *args):
+        client_id, message_id = args[0]
+
+        q = f'update client_last_message_to_edit set message_id={message_id} where client_id={client_id};'
+
+        self.curs.execute(q)
+        self.connect.commit()
+
+    @check_session_time_alive
+    def get_client_last_message_id(self, *args):
+        client_id = args[0][0]
+
+        q = f'select message_id from client_last_message_to_edit where client_id={client_id};'
+
+        self.curs.execute(q)
+        return self.curs.fetchone()

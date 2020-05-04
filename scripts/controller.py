@@ -6,12 +6,14 @@ from model import Model
 from log_handler import LogHandler
 import telebot
 from telebot import types
+from socket_handler_listener import SocketHandler
 import sys
 import time
 
 bot = telebot.TeleBot(config.TOKEN)
 logger = LogHandler()
 model = Model(logger)
+sock_handler = SocketHandler(model)
 
 # Reply markup buttons for calendar
 kb_mon = types.InlineKeyboardButton(text='Пн', callback_data='day_name')
@@ -37,6 +39,7 @@ month_names = {1: 'Січень',
 
 ev_req_for_contact_updating = {}
 
+
 def init_controller():
     """
     Controller initialization
@@ -49,6 +52,8 @@ def init_controller():
         logger.write_to_log('exception', 'sys')
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'sys')
         time.sleep(5)
+    except KeyboardInterrupt:
+        exit(0)
 
 
 def show_main_menu(message, edit=False):
@@ -105,9 +110,10 @@ def show_main_menu(message, edit=False):
                                           message_id=message.message_id,
                                           reply_markup=inline_kb)
         else:
-            bot.send_message(chat_id=message.chat.id,
+            message_res_id = bot.send_message(chat_id=message.chat.id,
                              text=msg,
-                             reply_markup=inline_kb)
+                             reply_markup=inline_kb).message_id
+            model.set_client_last_message_id(message.chat.id, message_res_id)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')
@@ -392,7 +398,7 @@ def generate_calendar_keyboard(year, r_month, prev_m, next_m, what_date, ev_id):
                 callback = 'day'
                 if day != 0:
                     date = datetime.datetime.now()
-                    minute = date.minute if date.minute % 5 == 0 else (date.minute - date.minute % 5) + 5   # makes minute value mod 5(5, 10, 15 etc)
+                    minute = date.minute if date.minute % 5 == 0 else (date.minute - date.minute % 5) - 5   # makes minute value mod 5(5, 10, 15 etc)
                     callback = f'set_inline_watch:{year}-{r_month}-{day}+{date.hour}:{minute}:00_type:{what_date}_ev_id:{ev_id}'
                     # callback data which creates time picker, initialised with selected here data
 
@@ -432,7 +438,7 @@ def set_inline_watch_handler(call):
         inline_kb = types.InlineKeyboardMarkup()
 
         plus_hour = types.InlineKeyboardButton(text=f'{emojize("  :arrow_up_small:", use_aliases=True)}',
-                                               callback_data=f'set_inline_watch:{mysql_date}+{hour+1 if hour != 24 else 00}:{minute}:00_type:{type_of_date}_ev_id:{event_id}')
+                                               callback_data=f'set_inline_watch:{mysql_date}+{hour+1 if hour != 23 else 00}:{minute}:00_type:{type_of_date}_ev_id:{event_id}')
         empty = types.InlineKeyboardButton(text=f'⠀', callback_data='empty')
         plus_min = types.InlineKeyboardButton(text=f'{emojize("  :arrow_up_small:", use_aliases=True)}',
                                               callback_data=f'set_inline_watch:{mysql_date}+{hour}:{minute+5 if minute != 55 else 00}:00_type:{type_of_date}_ev_id:{event_id}')
@@ -442,7 +448,7 @@ def set_inline_watch_handler(call):
         btn_min = types.InlineKeyboardButton(text=f'{minute}', callback_data='empty')
 
         minus_hour = types.InlineKeyboardButton(text=f'{emojize(" :arrow_down_small:", use_aliases=True)}',
-                                                callback_data=f'set_inline_watch:{mysql_date}+{hour-1 if hour != 00 else 24}:{minute}:00_type:{type_of_date}_ev_id:{event_id}')
+                                                callback_data=f'set_inline_watch:{mysql_date}+{hour-1 if hour != 00 else 23}:{minute}:00_type:{type_of_date}_ev_id:{event_id}')
         minus_min = types.InlineKeyboardButton(text=f'{emojize("  :arrow_down_small:", use_aliases=True)}',
                                                callback_data=f'set_inline_watch:{mysql_date}+{hour}:{minute-5 if minute != 00 else 55}:00_type:{type_of_date}_ev_id:{event_id}')
 
@@ -891,6 +897,38 @@ def set_client_phone_number_ev_req_id_handler(call):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+# socket notifications
+
+
+def notify_about_price_changes(client_id, event_id):
+    """
+    Handles command got from staff bot, to notify client about fact, price were changed
+    :param client_id: client telegram id
+    :param event_id: event id, where price were changed
+    :return: None
+    """
+    try:
+        menu_id = model.get_client_last_message_id(client_id)
+
+        msg = f'Ціна на одну з ваших подій змінилась! натисніть кнопку, щоб отримати інформацію'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        inline_kb.row(types.InlineKeyboardButton(text=f'{emojize(" :information_source:", use_aliases=True)}',
+                                                 callback_data=f'show_price_changes_ev_id:{event_id}'))
+
+        bot.edit_message_text(chat_id=client_id,
+                              message_id=menu_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+# different message types handlers
+
+
 @bot.message_handler(content_types=['contact'])
 def get_contact_message(message):
     try:
@@ -953,4 +991,3 @@ def set_client_name(message):
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
-# TODO: fill client contact data

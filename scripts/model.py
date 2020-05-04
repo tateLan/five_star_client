@@ -368,3 +368,41 @@ class Model:
 
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def set_client_last_message_id(self, client_id, message_id):
+        """
+        Sets clients last message id if its inserted, otherwise inserts it
+        :param client_id: client telegram id
+        :param message_id: message id
+        :return: None
+        """
+        try:
+            flag = True if self.db_handler.get_client_last_message_id(client_id) is not None else False
+
+            if flag:
+                self.db_handler.update_client_last_message_id(client_id, message_id)
+            else:
+                self.db_handler.insert_client_last_message_id(client_id, message_id)
+            self.logger.write_to_log(f'client last message id set', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def get_client_last_message_id(self, client_id):
+        """
+        Returns last message id to edit it
+        :param client_id: client telegram id
+        :return: int message id
+        """
+        try:
+            message_id = self.db_handler.get_client_last_message_id(client_id)[0]
+            self.logger.write_to_log(f'client last message id got', 'model')
+            return message_id
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
