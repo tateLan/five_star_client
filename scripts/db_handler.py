@@ -324,3 +324,25 @@ class DBhandler():
 
         self.curs.execute(q)
         return self.curs.fetchone()
+
+    @check_session_time_alive
+    def get_client_event_extended(self, *args):
+        """
+        Returns all information about event (including event request)
+        :param args: (event id)
+        :return: firstly all columns from event request, than all columns from event(
+                 event_req_id, client_id, date_placed, processed_by, processed,
+                 event_id, event_req_id, title, location, starts, ends, event_type, event_class, guests, staff, price, feedback)
+        """
+        event_id = args[0][0]
+
+        q = f'select * ' \
+            f'from event_request er left join event e on e.event_request_id=er.event_request_id ' \
+            f'where e.event_id={event_id};'
+
+        self.curs.execute(q)
+        return self.curs.fetchone()
+
+
+
+

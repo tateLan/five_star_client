@@ -897,6 +897,32 @@ def set_client_phone_number_ev_req_id_handler(call):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+@bot.callback_query_handler(func=lambda call: len(call.data.split('show_price_changes_ev_id:')) > 1)
+def show_price_changes_ev_id_handler(call):
+    try:
+        ev_id = int(call.data.split('show_price_changes_ev_id:')[1])
+        event = model.get_client_event_extended(ev_id)
+        msg = f'{emojize(" :information_source:", use_aliases=True)}Ціну на вашу подію було оновлено!{emojize(" :information_source:", use_aliases=True)}\n' \
+              f'{"-" * 20}\n' \
+              f'{emojize(" :moneybag:", use_aliases=True)}Ціна обслуговування вашої події *{event[7]}*, яка відбудеться *{event[9]}* складає *{event[15]}*грн.'
+
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              parse_mode='Markdown',
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
 # socket notifications
 
 

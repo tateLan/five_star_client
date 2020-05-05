@@ -406,3 +406,18 @@ class Model:
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
 
+    def get_client_event_extended(self, event_id):
+        """
+        Returns extended information about event by its id
+        :param event_id:id of event
+        :return:set of event data
+        """
+        try:
+            event = self.db_handler.get_client_event_extended(event_id)
+            self.logger.write_to_log(f'event extended info by id got', 'model')
+            return event
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
