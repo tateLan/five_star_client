@@ -5,7 +5,7 @@ import _thread
 
 
 class SocketHandler():
-    def __init__(self, model):
+    def __init__(self, logger):
         try:
             self.port = 1512
             self.packet_size = 2048
@@ -15,8 +15,7 @@ class SocketHandler():
             print(f'connected to socket server')
             _thread.start_new_thread(self.check_incoming_commands, ())
 
-            self.model = model
-            self.logger = model.logger
+            self.logger = logger
         except KeyboardInterrupt:
             self.sock.close()
             exit(0)
@@ -54,7 +53,7 @@ class SocketHandler():
             if msg[0] == 'price_changed':
                 controller.notify_about_price_changes(msg[1], msg[2])
             elif msg[0] == 'request_feedback':
-                pass
+                controller.request_feedback(msg[1], msg[2])
             # TODO: add some cross-bot interacting commands
         except Exception as err:
             method_name = sys._getframe().f_code.co_name

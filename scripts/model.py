@@ -3,9 +3,10 @@ import sys
 
 
 class Model:
-    def __init__(self, logger):
+    def __init__(self, logger, sock_handler):
         self.db_handler = DBhandler()
         self.logger = logger
+        self.sock_handler = sock_handler
 
     def is_user_registered(self, client_id):
         """
@@ -314,7 +315,7 @@ class Model:
         try:
             self.db_handler.confirm_request_registration(ev_req_id)
             self.logger.write_to_log(f'event request registered', 'model')
-            # TODO: notify managers about new request
+            self.sock_handler.send_socket_command('event_registered')
         except Exception as err:
             method_name = sys._getframe().f_code.co_name
     
@@ -419,5 +420,21 @@ class Model:
         except Exception as err:
             method_name = sys._getframe().f_code.co_name
 
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+    
+    def update_event_feedback(self, event_id, feedback):
+        """
+        Updates event feedback by its id
+        :param event_id:event id
+        :param feedback:int feedback
+        :return: None
+        """
+        try:
+            self.db_handler.update_event_feedback(event_id, feedback)
+            self.logger.write_to_log(f'event feedback set', 'model')
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+    
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')

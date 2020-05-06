@@ -12,8 +12,8 @@ import time
 
 bot = telebot.TeleBot(config.TOKEN)
 logger = LogHandler()
-model = Model(logger)
-sock_handler = SocketHandler(model)
+sock_handler = SocketHandler(logger)
+model = Model(logger, sock_handler)
 
 # Reply markup buttons for calendar
 kb_mon = types.InlineKeyboardButton(text='Пн', callback_data='day_name')
@@ -102,6 +102,7 @@ def show_main_menu(message, edit=False):
         inline_kb.row(create_request)
         inline_kb.row(update)
 
+        message_res_id = 0
         if edit:
             bot.edit_message_text(chat_id=message.chat.id,
                                   message_id=message.message_id,
@@ -109,11 +110,12 @@ def show_main_menu(message, edit=False):
             bot.edit_message_reply_markup(chat_id=message.chat.id,
                                           message_id=message.message_id,
                                           reply_markup=inline_kb)
+            message_res_id = message.message_id
         else:
             message_res_id = bot.send_message(chat_id=message.chat.id,
-                             text=msg,
-                             reply_markup=inline_kb).message_id
-            model.set_client_last_message_id(message.chat.id, message_res_id)
+                                              text=msg,
+                                              reply_markup=inline_kb).message_id
+        model.set_client_last_message_id(message.chat.id, message_res_id)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')
@@ -904,7 +906,8 @@ def show_price_changes_ev_id_handler(call):
         event = model.get_client_event_extended(ev_id)
         msg = f'{emojize(" :information_source:", use_aliases=True)}Ціну на вашу подію було оновлено!{emojize(" :information_source:", use_aliases=True)}\n' \
               f'{"-" * 20}\n' \
-              f'{emojize(" :moneybag:", use_aliases=True)}Ціна обслуговування вашої події *{event[7]}*, яка відбудеться *{event[9]}* складає *{event[15]}*грн.'
+              f'{emojize(" :moneybag:", use_aliases=True)}Ціна обслуговування вашої події *{event[7]}*, ' \
+              f'яка відбудеться *{event[9]}* складає *{event[15]}*грн.'
 
         inline_kb = types.InlineKeyboardMarkup()
 
@@ -923,6 +926,79 @@ def show_price_changes_ev_id_handler(call):
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 
+def update_menu_to_not_relevant_data(client_id):
+    """
+    Edits menu message, to send new message with relevant information
+    :param client_id: client telegram id
+    :return: None
+    """
+    try:
+        menu_id = model.get_client_last_message_id(client_id)
+        msg = f'{emojize(" :scream:", use_aliases=True)}Дана інформація застаріла, ви отримаєте нове повідомлення з актуальною)'
+
+        bot.edit_message_text(chat_id=client_id,
+                              message_id=menu_id,
+                              text=msg)
+    except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+            logger.write_to_log('exception', 'controller')
+            logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('show_event_feedback_menu_ev_id:')) > 1)
+def set_event_feedback_ev_id_handler(call):
+    try:
+        ev_id = int(call.data.split('show_event_feedback_menu_ev_id:')[1])
+        event = model.get_client_event_extended(ev_id)
+
+        msg = f'Будь ласка, оцініть нашу роботу на події *{event[7]}*, ' \
+              f'яка відбувалась з {emojize(" :clock4:", use_aliases=True)}*{event[9]}* ' \
+              f'по {emojize(" :clock430:", use_aliases=True)}*{event[10]}*:'
+
+        inline_kb = types.InlineKeyboardMarkup()
+
+        for i in range(1, 6, 1):
+            inline_kb.row(types.InlineKeyboardButton(text=f'{emojize(" :star:", use_aliases=True) * i}',
+                                                     callback_data=f'set_event_feedback_ev_id:{ev_id}_fb:{i}'))
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              parse_mode='Markdown',
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('set_event_feedback_ev_id:')) > 1)
+def set_event_feedback_ev_id_handler(call):
+    try:
+        ev_id = call.data.split('set_event_feedback_ev_id:')[1].split('_')[0]
+        feedback = call.data.split('_fb:')[1]
+
+        model.update_event_feedback(ev_id, feedback)
+
+        msg = f'Дякуємо за відгук!{emojize(" :relaxed:", use_aliases=True)}'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        sock_handler.send_socket_command(f'feedback_updated-{ev_id}')
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
 # socket notifications
 
 
@@ -934,18 +1010,41 @@ def notify_about_price_changes(client_id, event_id):
     :return: None
     """
     try:
-        menu_id = model.get_client_last_message_id(client_id)
-
         msg = f'Ціна на одну з ваших подій змінилась! натисніть кнопку, щоб отримати інформацію'
         inline_kb = types.InlineKeyboardMarkup()
 
         inline_kb.row(types.InlineKeyboardButton(text=f'{emojize(" :information_source:", use_aliases=True)}',
                                                  callback_data=f'show_price_changes_ev_id:{event_id}'))
-
-        bot.edit_message_text(chat_id=client_id,
-                              message_id=menu_id,
+        update_menu_to_not_relevant_data(client_id)
+        bot.send_message(chat_id=client_id,
                               text=msg,
                               reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+def request_feedback(client_id, event_id):
+    """
+    Notifies client about ended event, and feedback request
+    :param client_id: client telegram id
+    :param event_id: event id
+    :return: None
+    """
+    try:
+        msg = f'Одна з ваших подій щойно завершилась!{emojize(" :smiley:", use_aliases=True)} \n' \
+              f'Будь-ласка, оцініть нашу роботу. Будьте максимально чесними, але пам\'ятайте, ' \
+              f'що від вашого рішення залежть заробітня плата працівників' \
+              f'{emojize(" :sweat_smile:", use_aliases=True)}'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        inline_kb.row(types.InlineKeyboardButton(text=f'{emojize(" :sparkles:", use_aliases=True)}Виставити оцінку',
+                                                 callback_data=f'show_event_feedback_menu_ev_id:{event_id}'))
+        update_menu_to_not_relevant_data(client_id)
+        bot.send_message(chat_id=client_id,
+                         text=msg,
+                         reply_markup=inline_kb)
     except Exception as err:
         method_name = sys._getframe().f_code.co_name
         logger.write_to_log('exception', 'controller')

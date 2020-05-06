@@ -343,6 +343,14 @@ class DBhandler():
         self.curs.execute(q)
         return self.curs.fetchone()
 
+    @check_session_time_alive
+    def update_event_feedback(self, *args):
+        ev_id, feedback = args[0]
+
+        q = f'update event set feedback={feedback} where event_id={ev_id};'
+
+        self.curs.execute(q)
+        self.connect.commit()
 
 
 
