@@ -105,8 +105,8 @@ class DBhandler():
 
         q = f"select ev.event_id, ev.event_request_id, ev.title, ev.location, ev.date_starts, ev.date_ends, " \
             f"ev.event_type_id, ev.event_class_id, ev.number_of_guests, ev.staff_needed, ev.price, ev.feedback " \
-            f"from event ev left join event_request er on ev.event_request_id = er.event_request_id " \
-            f"where er.client_id={client_id} and ev.date_ends<'{mysql_date}';"
+            f"from (event ev left join event_request er on ev.event_request_id = er.event_request_id) left join shift sh on sh.event_id = ev.event_id " \
+            f"where er.client_id={client_id} and sh.ended=1;"
 
         self.curs.execute(q)
         return self.curs.fetchall()
@@ -351,6 +351,16 @@ class DBhandler():
 
         self.curs.execute(q)
         self.connect.commit()
+
+    @check_session_time_alive
+    def get_config_value(self, *args):
+        key = args[0][0]
+
+        q = f"select _value from config where _key='{key}';"
+
+        self.curs.execute(q)
+
+        return self.curs.fetchone()
 
 
 

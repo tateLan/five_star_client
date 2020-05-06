@@ -6,7 +6,7 @@ from model import Model
 from log_handler import LogHandler
 import telebot
 from telebot import types
-from socket_handler_listener import SocketHandler
+from socket_handler import SocketHandler
 import sys
 import time
 
@@ -81,7 +81,7 @@ def show_main_menu(message, edit=False):
 
         # Buttons declaration
         events_archive = types.InlineKeyboardButton(
-            text=f'{emojize(" :open_file_folder:", use_aliases=True)}Переглянути події', callback_data='events_archive')
+            text=f'{emojize(" :open_file_folder:", use_aliases=True)}Переглянути події', callback_data='events_archive_page:0')
         check_pending_requests = types.InlineKeyboardButton(
             text=f'{emojize(" :clipboard:", use_aliases=True)}Переглянути заявки',
             callback_data='check_pending_requests')
@@ -220,7 +220,6 @@ def check_if_request_have_required_data(func):
     :param func: function needed to be wrapped
     :return: wrapped function
     """
-
     def inner_func(message, event_request_id, edit_message=False):
         """
         Checks if client already filled all required data about event (date starts, date ends and number of guests)
@@ -998,6 +997,104 @@ def set_event_feedback_ev_id_handler(call):
         logger.write_to_log('exception', 'controller')
         logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('events_archive_page:')) > 1)
+def events_archive_handler(call):
+    try:
+        page = int(call.data.split('events_archive_page:')[1])
+        num_of_pages, events = model.get_event_archive_page(call.message.chat.id, page)
+
+        msg = f'Виберіть подію, про яку хочете отримати інформацію:\n' \
+              f'{emojize(" :page_facing_up:", use_aliases=True)}Сторінка {page+1}/{num_of_pages}'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        if num_of_pages > 0:
+            for event in events:
+                inline_kb.row(types.InlineKeyboardButton(text=f'{event[2]} {event[4]}',
+                                                         callback_data=f'show_archive_ev_id:{event[0]}'))
+            next_page_indi = False
+            prev_page_indi = False
+
+            next_page = types.InlineKeyboardButton(text=f'{emojize(" :arrow_forward:", use_aliases=True)}',
+                                                   callback_data=f'events_archive_page:{page + 1}')
+            prev_page = types.InlineKeyboardButton(text=f'{emojize(" :arrow_backward:", use_aliases=True)}',
+                                                   callback_data=f'events_archive_page:{page - 1}')
+
+            if page + 1 == num_of_pages:
+                next_page_indi = False
+            else:
+                next_page_indi = True
+            if page == 0:
+                prev_page_indi = False
+            else:
+                prev_page_indi = True
+
+            if prev_page_indi and next_page_indi:
+                inline_kb.row(prev_page, next_page)
+            if prev_page_indi and not next_page_indi:
+                inline_kb.row(prev_page)
+            if not prev_page_indi and next_page_indi:
+                inline_kb.row(next_page)
+        else:
+            pass
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: len(call.data.split('show_archive_ev_id:')) > 1)
+def show_archive_ev_id_handler(call):
+    try:
+        ev_id = call.data.split('show_archive_ev_id:')[1]
+        event = model.get_client_event_extended(ev_id)
+
+        created_request_date_str = f'{emojize(" :boom:", use_aliases=True)}Заявку подано:{event[2]}'
+        request_processed_str = f'{emojize(" :heavy_multiplication_x:" if event[4] != 1 else ":heavy_check_mark:", use_aliases=True)}' \
+                                f'Заявку {"опрацьовано" if event[4] == 1 else "не опрацьовано"}'
+        event_title_str = f'{emojize(" :boom:", use_aliases=True)}Назва події: {event[7]}'
+        event_location_str = f'{emojize(" :round_pushpin:", use_aliases=True)}Місце проведення: {event[8] if event[8] is not None else "не зазначено"}'
+        date_starts_str = f'{emojize(":clock4:", use_aliases=True)}Дата початку: {event[9] if event[9] is not None else "не зазначено"}'
+        date_ends_str = f'{emojize(" :clock430:", use_aliases=True)}Дата закінчення: {event[10] if event[10] is not None else "не зазначено"}'
+        event_type_str = f'{emojize(" :grey_question:", use_aliases=True)}Тип події: {[x[1] for x in model.get_event_types() if x[0] == event[11]][0] if event[11] is not None else "не зазначено"}'
+        event_class_str = f'{emojize(" :sparkles:", use_aliases=True)}Клас події: {[x[1] for x in model.get_event_classes() if x[0] == event[12]][0] if event[12] is not None else "не зазначено"}'
+        guests_str = f'{emojize(" :tophat:", use_aliases=True)}Кількість гостей: {event[13] if event[13] is not None else "не зазначено"}'
+
+        msg = f'{emojize(" :pencil2:", use_aliases=True)} Відомості про проведену подію\n' \
+              f'{"-" * 20}\n' \
+              f'{created_request_date_str}\n' \
+              f'{request_processed_str}\n' \
+              f'{"-" * 20}\n' \
+              f'{event_title_str}\n' \
+              f'{event_location_str}\n' \
+              f'{date_starts_str}\n' \
+              f'{date_ends_str}\n' \
+              f'{event_type_str}\n' \
+              f'{event_class_str}\n' \
+              f'{guests_str}\n'
+
+        inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
 
 # socket notifications
 

@@ -1,4 +1,5 @@
 from db_handler import DBhandler
+import math
 import sys
 
 
@@ -438,3 +439,44 @@ class Model:
     
             self.logger.write_to_log('exception', 'model')
             self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def get_config_value(self, key):
+        """
+        Returns value of key, from config table from db
+        :param key: name of value
+        :return: value
+        """
+        try:
+            self.logger.write_to_log('config data requested', 'model')
+
+            return self.db_handler.get_config_value(key)[0]
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+    def get_event_archive_page(self, client_id, page):
+        """
+        Returns list of user ended events by page
+        :param client_id: client telegram id
+        :param page: int page
+        :return:set of (overall number of events, list of event information)
+        """
+        try:
+            overall_events = self.get_client_ended_events(client_id)
+            res = []
+            size = int(self.get_config_value('STAT_ITEMS_ON_ONE_PAGE'))
+
+            res = overall_events[page * size: (page * size) + size]
+            self.logger.write_to_log('list of ended shifts of staff is here', str(client_id))
+
+            return math.ceil(len(overall_events) / size), res
+        except Exception as err:
+            method_name = sys._getframe().f_code.co_name
+
+            self.logger.write_to_log('exception', 'model')
+            self.logger.write_to_err_log(f'exception in method {method_name} - {err}', 'model')
+
+
+
