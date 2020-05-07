@@ -86,7 +86,7 @@ def show_main_menu(message, edit=False):
             text=f'{emojize(" :clipboard:", use_aliases=True)}Переглянути заявки',
             callback_data='check_pending_requests')
         left_feedback = types.InlineKeyboardButton(text=f'{emojize(" :bar_chart:", use_aliases=True)}Виставити рейтинг',
-                                                   callback_data='left_feedback')
+                                                   callback_data='leave_feedback')
         create_request = types.InlineKeyboardButton(text=f'{emojize(" :pencil2:", use_aliases=True)}Створити заявку',
                                                     callback_data='create_event_request')
         update = types.InlineKeyboardButton(text=f'{emojize(" :arrows_counterclockwise:", use_aliases=True)}Оновити',
@@ -1036,7 +1036,7 @@ def events_archive_handler(call):
             if not prev_page_indi and next_page_indi:
                 inline_kb.row(next_page)
         else:
-            pass
+            msg = f'У вас ще немає завершених подій{emojize(" :grimacing:", use_aliases=True)}'
         back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
 
         inline_kb.row(back)
@@ -1082,6 +1082,35 @@ def show_archive_ev_id_handler(call):
               f'{guests_str}\n'
 
         inline_kb = types.InlineKeyboardMarkup()
+
+        back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
+
+        inline_kb.row(back)
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=msg,
+                              reply_markup=inline_kb)
+    except Exception as err:
+        method_name = sys._getframe().f_code.co_name
+        logger.write_to_log('exception', 'controller')
+        logger.write_to_err_log(f'exception in method {method_name} - {err}', 'controller')
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'leave_feedback')
+def leave_feedback_handler(call):
+    try:
+        events = model.get_events_without_feedback(call.message.chat.id)
+
+        msg = f'Виберіть подію для виставлення відгуку:'
+        inline_kb = types.InlineKeyboardMarkup()
+
+        if len(events) > 0:
+            for ev in events:
+                inline_kb.row(types.InlineKeyboardButton(text=f'{ev[2]} {ev[4]}',
+                                                         callback_data=f'show_event_feedback_menu_ev_id:{ev[0]}'))
+        else:
+            msg = f'У вас поки немає подій, для виставлення відгуку{emojize(" :grimacing:", use_aliases=True)}'
 
         back = types.InlineKeyboardButton(text=f'{emojize(" :back:", use_aliases=True)}До меню', callback_data='main_menu')
 
